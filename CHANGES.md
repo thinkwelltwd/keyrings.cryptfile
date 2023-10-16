@@ -1,6 +1,6 @@
 1.4.0
 =====
-- Rename master branch to main
+- Add support for encrypting file with ChaChaPoly3105
 
 1.3.9
 =====
