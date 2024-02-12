@@ -3,6 +3,7 @@ import os
 import pathlib
 import shutil
 import sys
+import tempfile
 from unittest import mock
 
 import pytest
@@ -135,6 +136,24 @@ def test_versions(version, activities, monkeypatch, tmp_path):
         else:
             raise Exception('unexpected activity selection')
 
+def test_password_via_env(monkeypatch, tmp_path):
+    fake_getpass = mock.Mock(return_value='passwd')
+    monkeypatch.setattr(getpass, 'getpass', fake_getpass)
+
+    kr = cryptfile.CryptFileKeyring()
+    kr.file_path = fspath(tmp_path.joinpath('cp_new.cfg'))
+    kr.set_password('test write', 'user', 'test password')
+
+    fake_getpass = mock.Mock(return_value='wrong passwd')
+    os.environ['KEYRING_CRYPTFILE_PASSWORD'] = "passwd"
+    monkeypatch.setattr(getpass, 'getpass', fake_getpass)
+
+    # now create a new one and get password here without prompt
+    kr = cryptfile.CryptFileKeyring()
+    kr.file_path = fspath(tmp_path.joinpath('cp_new.cfg'))
+
+    assert kr.get_password('test write', 'user') == 'test password'
+
 
 def test_new_file(monkeypatch, tmp_path):
     fake_getpass = mock.Mock(return_value='passwd')
@@ -145,3 +164,15 @@ def test_new_file(monkeypatch, tmp_path):
 
     kr.set_password('test write', 'user', 'test password')
     assert kr.get_password('test write', 'user') == 'test password'
+
+
+def test_new_file_via_env(monkeypatch, tmp_path):
+    fake_getpass = mock.Mock(return_value='passwd')
+    monkeypatch.setattr(getpass, 'getpass', fake_getpass)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.environ['KEYRING_CRYPTFILE_PATH'] = os.path.join(tmpdir, "cf_new.cfg")
+        kr = cryptfile.CryptFileKeyring()
+        kr.set_password('test write', 'user', 'test password')
+        assert kr.get_password('test write', 'user') == 'test password'
+        assert os.path.exists(os.environ['KEYRING_CRYPTFILE_PATH'])
